@@ -14,6 +14,10 @@
   main { padding: 16px; max-width: 720px; margin: 0 auto; }
   .screen { display: none; }
   .screen.active { display: block; }
+  .screen.sj.active { background: #f3faf5; margin: -16px; padding: 16px; }
+  .screen.j.active  { background: #f3f7fe; margin: -16px; padding: 16px; }
+  .screen.s.active  { background: #fffaf0; margin: -16px; padding: 16px; }
+  .screen.ss.active { background: #fdf3f2; margin: -16px; padding: 16px; }
 
   #loginScreen { max-width: 360px; margin: 60px auto; padding: 24px; background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
   #loginScreen h2 { margin-top: 0; font-size: 18px; }
@@ -24,10 +28,10 @@
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 12px; }
   .card { background: #fff; border-radius: 10px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); cursor: pointer; font-weight: 600; border: 2px solid transparent; }
   .card:active { transform: scale(0.97); }
-  .card.sj { border-color: #34a853; }
-  .card.j  { border-color: #1a73e8; }
-  .card.s  { border-color: #f9ab00; }
-  .card.ss { border-color: #d93025; }
+  .card.sj { border-color: #34a853; background: #e8f6ed; }
+  .card.j  { border-color: #1a73e8; background: #e8f0fe; }
+  .card.s  { border-color: #f9ab00; background: #fef6e0; }
+  .card.ss { border-color: #d93025; background: #fce8e6; }
   .card .sub { display: block; font-size: 12px; font-weight: 400; color: #777; margin-top: 4px; }
 
   .backbar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
@@ -59,11 +63,44 @@
   #saveRemarksBtn { background: #1a73e8; color: #fff; }
 
   .summaryGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
-  .summaryCard { background: #fff; border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); cursor: pointer; }
+  .summaryCard { background: #fff; border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); cursor: pointer; border-left: 6px solid #ccc; }
+  .summaryCard.sj { border-left-color: #34a853; background: #e8f6ed; }
+  .summaryCard.j  { border-left-color: #1a73e8; background: #e8f0fe; }
+  .summaryCard.s  { border-left-color: #f9ab00; background: #fef6e0; }
+  .summaryCard.ss { border-left-color: #d93025; background: #fce8e6; }
   .summaryCard .pct { font-size: 22px; font-weight: 700; }
   .summaryCard .lbl { font-size: 12px; color: #777; }
   .progressBar { height: 6px; background: #eee; border-radius: 3px; margin-top: 8px; overflow: hidden; }
   .progressBar > div { height: 100%; background: #1a7a32; }
+
+  /* Round report */
+  .roundPicker { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 20px; }
+  .roundPicker button { padding: 10px 18px; font-size: 14px; font-weight: 600; border: 2px solid #ddd; background: #fff; border-radius: 8px; }
+  .roundPicker button.activeRound { border-color: #1a73e8; background: #e8f0fe; color: #1a73e8; }
+  .reportActions { display: flex; gap: 8px; margin-bottom: 16px; }
+  .reportActions button { padding: 10px 16px; font-size: 14px; border: 1px solid #ccc; border-radius: 8px; background: #fff; }
+  .catSection { margin-bottom: 28px; border-radius: 10px; padding: 12px; }
+  .catSection h3 { font-size: 15px; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 2px solid #111; }
+  .catSection.sj { background: #e8f6ed; }
+  .catSection.j  { background: #e8f0fe; }
+  .catSection.s  { background: #fef6e0; }
+  .catSection.ss { background: #fce8e6; }
+  table.reportTable { background: #fff; }
+  table.reportTable { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.reportTable th, table.reportTable td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+  table.reportTable th { background: #f0f0f0; font-weight: 600; }
+  table.reportTable td.bnum { width: 40px; text-align: center; font-weight: 600; }
+  table.reportTable td.score { width: 70px; text-align: center; font-weight: 700; }
+  table.reportTable td.score.pending { color: #bbb; font-weight: 400; }
+  table.reportTable tr.byeRow td { font-style: italic; color: #777; }
+
+  @media print {
+    header, .backbar, .reportActions, .roundPicker { display: none !important; }
+    body { background: #fff; }
+    main { padding: 0; max-width: 100%; }
+    .catSection { page-break-inside: avoid; margin-bottom: 18px; }
+    table.reportTable { font-size: 11px; }
+  }
 </style>
 </head>
 <body>
@@ -112,6 +149,19 @@
     <div class="summaryGrid" id="summaryGrid"></div>
   </div>
 
+  <div class="screen" id="reportScreen">
+    <div class="backbar">
+      <button id="reportBackBtn">&larr; Back</button>
+      <h2>Round report &mdash; all categories</h2>
+    </div>
+    <div class="roundPicker" id="roundPicker"></div>
+    <div class="reportActions">
+      <button id="refreshReportBtn">Refresh</button>
+      <button id="printReportBtn">Print this round</button>
+    </div>
+    <div id="reportBody"></div>
+  </div>
+
 </main>
 
 <div id="resultModal">
@@ -134,8 +184,8 @@
   </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="lib/firebase-app-compat.js"></script>
+<script src="lib/firebase-firestore-compat.js"></script>
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyAduUzHCW_LCSZoY7mf8U7jqTOlOnyfWT8",
@@ -239,6 +289,9 @@ document.getElementById('roundBackBtn').addEventListener('click', function() {
 document.getElementById('boardBackBtn').addEventListener('click', function() {
   showScreen('roundScreen');
 });
+document.getElementById('reportBackBtn').addEventListener('click', function() {
+  showScreen('tournamentScreen');
+});
 
 function renderTournamentGrid(showDashboardTile) {
   const grid = document.getElementById('tournamentGrid');
@@ -264,11 +317,22 @@ function renderTournamentGrid(showDashboardTile) {
       showScreen('dashboardScreen');
     });
     grid.appendChild(div);
+
+    const reportDiv = document.createElement('div');
+    reportDiv.className = 'card';
+    reportDiv.style.borderColor = '#111';
+    reportDiv.innerHTML = 'Round report<span class="sub">printable, by round</span>';
+    reportDiv.addEventListener('click', function() {
+      openRoundReport();
+      showScreen('reportScreen');
+    });
+    grid.appendChild(reportDiv);
   }
 }
 
 function renderRoundGrid() {
   document.getElementById('roundScreenTitle').textContent = TOURNAMENT_LABELS[currentTournament] + ' \u2014 rounds';
+  document.getElementById('roundScreen').className = 'screen ' + TOURNAMENT_CLASS[currentTournament];
   const grid = document.getElementById('roundGrid');
   grid.innerHTML = '';
   for (let r = 1; r <= 6; r++) {
@@ -285,6 +349,7 @@ function renderRoundGrid() {
 function openBoardList() {
   document.getElementById('boardScreenTitle').textContent =
     TOURNAMENT_LABELS[currentTournament] + ' \u2014 Round ' + currentRound;
+  document.getElementById('boardScreen').className = 'screen ' + TOURNAMENT_CLASS[currentTournament];
   showScreen('boardScreen');
 
   if (boardUnsub) boardUnsub();
@@ -377,7 +442,7 @@ function renderDashboard() {
 
   ['SJ','J','S','SS'].forEach(function(code) {
     const card = document.createElement('div');
-    card.className = 'summaryCard';
+    card.className = 'summaryCard ' + TOURNAMENT_CLASS[code];
     card.innerHTML =
       '<div class="lbl">' + TOURNAMENT_LABELS[code] + '</div>' +
       '<div class="pct" id="pct-' + code + '">&mdash;</div>' +
@@ -403,6 +468,94 @@ function renderDashboard() {
         document.getElementById('bar-' + code).style.width = pct + '%';
       });
     dashUnsub.push(unsub);
+  });
+}
+
+// ---------- ROUND REPORT (all categories, one round, printable) ----------
+let reportRound = 1;
+
+function openRoundReport() {
+  renderRoundPicker();
+  loadReport(reportRound);
+}
+
+function renderRoundPicker() {
+  const picker = document.getElementById('roundPicker');
+  picker.innerHTML = '';
+  for (let r = 1; r <= 6; r++) {
+    const btn = document.createElement('button');
+    btn.textContent = 'Round ' + r;
+    if (r === reportRound) btn.classList.add('activeRound');
+    btn.addEventListener('click', function() {
+      reportRound = r;
+      renderRoundPicker();
+      loadReport(r);
+    });
+    picker.appendChild(btn);
+  }
+}
+
+document.getElementById('refreshReportBtn').addEventListener('click', function() {
+  loadReport(reportRound);
+});
+document.getElementById('printReportBtn').addEventListener('click', function() {
+  window.print();
+});
+
+function loadReport(round) {
+  const body = document.getElementById('reportBody');
+  body.innerHTML = '<p style="color:#777;font-size:14px;">Loading round ' + round + '...</p>';
+
+  const codes = ['SJ', 'J', 'S', 'SS'];
+  const fetches = codes.map(function(code) {
+    return db.collection('games')
+      .where('tournament', '==', code)
+      .where('round', '==', round)
+      .get()
+      .then(function(snap) {
+        const games = [];
+        snap.forEach(function(d) { games.push(d.data()); });
+        games.sort(function(a, b) {
+          const an = parseInt(a.board.split('-').pop(), 10);
+          const bn = parseInt(b.board.split('-').pop(), 10);
+          return an - bn;
+        });
+        return { code: code, games: games };
+      });
+  });
+
+  Promise.all(fetches).then(function(results) {
+    body.innerHTML = '';
+    results.forEach(function(r) {
+      const section = document.createElement('div');
+      section.className = 'catSection ' + TOURNAMENT_CLASS[r.code];
+
+      let rows = '';
+      let reported = 0;
+      r.games.forEach(function(g) {
+        const white = g.white || '(TBD)';
+        const black = g.black || '(TBD)';
+        if (g.result) reported++;
+        if (!g.board) return;
+        const scoreClass = g.result ? 'score' : 'score pending';
+        const scoreText = g.result ? g.result : '\u2014';
+        const boardNum = g.board.split('-').pop();
+        rows += '<tr><td class="bnum">' + boardNum + '</td>' +
+          '<td>' + white + ' vs ' + black + '</td>' +
+          '<td class="' + scoreClass + '">' + scoreText + '</td></tr>';
+      });
+
+      section.innerHTML =
+        '<h3>' + TOURNAMENT_LABELS[r.code] + ' (' + r.code + ') &mdash; ' +
+        reported + ' / ' + r.games.length + ' reported</h3>' +
+        '<table class="reportTable"><thead><tr>' +
+        '<th>Board</th><th>White vs Black</th><th>Score</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table>';
+
+      body.appendChild(section);
+    });
+  }).catch(function(e) {
+    body.innerHTML = '<p style="color:#c00;">Could not load report: ' + e.message + '</p>';
   });
 }
 
