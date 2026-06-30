@@ -93,6 +93,17 @@
   table.reportTable td.score { width: 70px; text-align: center; font-weight: 700; }
   table.reportTable td.score.pending { color: #bbb; font-weight: 400; }
   table.reportTable tr.byeRow td { font-style: italic; color: #777; }
+  table.reportTable td.cbcell { width: 32px; text-align: center; }
+  table.reportTable td.cbcell input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; }
+  table.reportTable tr.ticked td { opacity: 0.4; text-decoration: line-through; }
+  table.reportTable tr.ticked td.cbcell { text-decoration: none; opacity: 1; }
+  table.reportTable tr.newResult td.score { animation: flashNew 1.5s ease-out; }
+  @keyframes flashNew { 0%,20% { background: #fbbc04; color: #000; } 100% { background: transparent; } }
+  table.reportTable tr.newResult::after { content: 'NEW'; font-size: 10px; font-weight: 700; color: #fbbc04; background: #111; padding: 1px 5px; border-radius: 4px; margin-left: 4px; vertical-align: middle; }
+  .catClearBtn { font-size: 12px; padding: 4px 10px; border: 1px solid #aaa; border-radius: 6px; background: #fff; float: right; margin-top: -4px; cursor: pointer; }
+  @media print {
+    td.cbcell, .catClearBtn { display: none !important; }
+  }
 
   @media print {
     header, .backbar, .reportActions, .roundPicker { display: none !important; }
@@ -543,6 +554,30 @@ document.getElementById('printReportBtn').addEventListener('click', function() {
   window.print();
 });
 
+// ---------- Checkbox tick state: persisted per round+tournament+board ----------
+function tickKey(round, code, boardNum) {
+  return 'tick:' + round + ':' + code + ':' + boardNum;
+}
+function isTicked(round, code, boardNum) {
+  return localStorage.getItem(tickKey(round, code, boardNum)) === '1';
+}
+function setTick(round, code, boardNum, val) {
+  if (val) {
+    localStorage.setItem(tickKey(round, code, boardNum), '1');
+  } else {
+    localStorage.removeItem(tickKey(round, code, boardNum));
+  }
+}
+function clearTicks(round, code) {
+  for (let b = 1; b <= 50; b++) {
+    localStorage.removeItem(tickKey(round, code, String(b).padStart(2,'0')));
+    localStorage.removeItem(tickKey(round, code, String(b)));
+  }
+}
+
+// Track which gameIds had a result last time we rendered, for NEW detection
+const _prevResults = {};
+
 function loadReport(round) {
   const body = document.getElementById('reportBody');
   body.innerHTML = '<p style="color:#777;font-size:14px;">Loading round ' + round + '...</p>';
@@ -571,28 +606,82 @@ function loadReport(round) {
       const section = document.createElement('div');
       section.className = 'catSection ' + TOURNAMENT_CLASS[r.code];
 
-      let rows = '';
       let reported = 0;
+      const tbodyRows = [];
+
       r.games.forEach(function(g) {
         const white = g.white || '(TBD)';
         const black = g.black || '(TBD)';
         if (g.result) reported++;
         if (!g.board) return;
+
+        const boardNum = g.board.split('-').pop();
         const scoreClass = g.result ? 'score' : 'score pending';
         const scoreText = g.result ? g.result : '\u2014';
-        const boardNum = g.board.split('-').pop();
-        rows += '<tr><td class="bnum">' + boardNum + '</td>' +
+        const ticked = isTicked(round, r.code, boardNum);
+
+        // Detect NEW: result just appeared since last render
+        const prevKey = r.code + ':' + g.gameId;
+        const wasBlank = !_prevResults[prevKey];
+        const isNew = g.result && wasBlank;
+        _prevResults[prevKey] = g.result || '';
+
+        const tr = document.createElement('tr');
+        if (ticked) tr.classList.add('ticked');
+        if (isNew && !ticked) tr.classList.add('newResult');
+
+        tr.innerHTML =
+          '<td class="cbcell"><input type="checkbox"' + (ticked ? ' checked' : '') + '></td>' +
+          '<td class="bnum">' + boardNum + '</td>' +
           '<td>' + white + ' vs ' + black + '</td>' +
-          '<td class="' + scoreClass + '">' + scoreText + '</td></tr>';
+          '<td class="' + scoreClass + '">' + scoreText + '</td>';
+
+        // Checkbox handler
+        const cb = tr.querySelector('input[type=checkbox]');
+        cb.addEventListener('change', (function(bNum, code, rnd, row) {
+          return function() {
+            setTick(rnd, code, bNum, this.checked);
+            if (this.checked) {
+              row.classList.add('ticked');
+              row.classList.remove('newResult');
+            } else {
+              row.classList.remove('ticked');
+            }
+          };
+        })(boardNum, r.code, round, tr));
+
+        tbodyRows.push(tr);
       });
 
-      section.innerHTML =
-        '<h3>' + TOURNAMENT_LABELS[r.code] + ' (' + r.code + ') &mdash; ' +
-        reported + ' / ' + r.games.length + ' reported</h3>' +
-        '<table class="reportTable"><thead><tr>' +
-        '<th>Board</th><th>White vs Black</th><th>Score</th>' +
-        '</tr></thead><tbody>' + rows + '</tbody></table>';
+      // Clear button
+      const clearBtn = document.createElement('button');
+      clearBtn.className = 'catClearBtn';
+      clearBtn.textContent = 'Clear ticks';
+      clearBtn.addEventListener('click', (function(code, rnd) {
+        return function() {
+          clearTicks(rnd, code);
+          section.querySelectorAll('tr.ticked').forEach(function(row) {
+            row.classList.remove('ticked');
+            row.querySelector('input[type=checkbox]').checked = false;
+          });
+        };
+      })(r.code, round));
 
+      const heading = document.createElement('h3');
+      heading.innerHTML = TOURNAMENT_LABELS[r.code] + ' (' + r.code + ') &mdash; ' +
+        reported + ' / ' + r.games.length + ' reported';
+      heading.appendChild(clearBtn);
+
+      const table = document.createElement('table');
+      table.className = 'reportTable';
+      table.innerHTML =
+        '<thead><tr><th></th><th>Board</th><th>White vs Black</th><th>Score</th></tr></thead>';
+      const tbody = document.createElement('tbody');
+      tbodyRows.forEach(function(row) { tbody.appendChild(row); });
+      table.appendChild(tbody);
+
+      section.appendChild(heading);
+      section.appendChild(table);
       body.appendChild(section);
     });
   }).catch(function(e) {
