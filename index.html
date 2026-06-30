@@ -93,13 +93,15 @@
   table.reportTable td.score { width: 70px; text-align: center; font-weight: 700; }
   table.reportTable td.score.pending { color: #bbb; font-weight: 400; }
   table.reportTable tr.byeRow td { font-style: italic; color: #777; }
-  table.reportTable td.cbcell { width: 32px; text-align: center; }
+  table.reportTable td.cbcell { width: 40px; text-align: center; }
   table.reportTable td.cbcell input[type=checkbox] { width: 18px; height: 18px; cursor: pointer; }
-  table.reportTable tr.ticked td { opacity: 0.4; text-decoration: line-through; }
+  table.reportTable tr.ticked td { opacity: 0.35; text-decoration: line-through; }
   table.reportTable tr.ticked td.cbcell { text-decoration: none; opacity: 1; }
-  table.reportTable tr.newResult td.score { animation: flashNew 1.5s ease-out; }
-  @keyframes flashNew { 0%,20% { background: #fbbc04; color: #000; } 100% { background: transparent; } }
-  table.reportTable tr.newResult::after { content: 'NEW'; font-size: 10px; font-weight: 700; color: #fbbc04; background: #111; padding: 1px 5px; border-radius: 4px; margin-left: 4px; vertical-align: middle; }
+  table.reportTable tr.newResult { animation: flashRow 3s ease-out forwards; }
+  @keyframes flashRow {
+    0%, 15% { background: #fbbc04; }
+    100%    { background: transparent; }
+  }
   .catClearBtn { font-size: 12px; padding: 4px 10px; border: 1px solid #aaa; border-radius: 6px; background: #fff; float: right; margin-top: -4px; cursor: pointer; }
   @media print {
     td.cbcell, .catClearBtn { display: none !important; }
@@ -631,10 +633,10 @@ function loadReport(round) {
         if (isNew && !ticked) tr.classList.add('newResult');
 
         tr.innerHTML =
-          '<td class="cbcell"><input type="checkbox"' + (ticked ? ' checked' : '') + '></td>' +
           '<td class="bnum">' + boardNum + '</td>' +
           '<td>' + white + ' vs ' + black + '</td>' +
-          '<td class="' + scoreClass + '">' + scoreText + '</td>';
+          '<td class="' + scoreClass + '">' + scoreText + '</td>' +
+          '<td class="cbcell"><input type="checkbox"' + (ticked ? ' checked' : '') + '></td>';
 
         // Checkbox handler
         const cb = tr.querySelector('input[type=checkbox]');
@@ -675,7 +677,7 @@ function loadReport(round) {
       const table = document.createElement('table');
       table.className = 'reportTable';
       table.innerHTML =
-        '<thead><tr><th></th><th>Board</th><th>White vs Black</th><th>Score</th></tr></thead>';
+        '<thead><tr><th>Board</th><th>White vs Black</th><th>Score</th><th>&#10003;</th></tr></thead>';
       const tbody = document.createElement('tbody');
       tbodyRows.forEach(function(row) { tbody.appendChild(row); });
       table.appendChild(tbody);
