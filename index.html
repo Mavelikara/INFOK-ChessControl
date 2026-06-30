@@ -15,14 +15,12 @@
   .screen { display: none; }
   .screen.active { display: block; }
 
-  /* Login */
   #loginScreen { max-width: 360px; margin: 60px auto; padding: 24px; background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
   #loginScreen h2 { margin-top: 0; font-size: 18px; }
   #loginScreen input { width: 100%; padding: 14px; font-size: 18px; margin: 8px 0; border: 1px solid #ccc; border-radius: 8px; }
   #loginScreen button { width: 100%; padding: 14px; font-size: 16px; background: #1a73e8; color: #fff; border: none; border-radius: 8px; margin-top: 8px; }
   #loginError { color: #c00; font-size: 13px; min-height: 18px; margin-top: 4px; }
 
-  /* Grids */
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 12px; }
   .card { background: #fff; border-radius: 10px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); cursor: pointer; font-weight: 600; border: 2px solid transparent; }
   .card:active { transform: scale(0.97); }
@@ -36,7 +34,6 @@
   .backbar button { background: none; border: none; font-size: 15px; color: #1a73e8; padding: 6px 0; }
   .backbar h2 { font-size: 16px; margin: 0; }
 
-  /* Board cards */
   .boardCard { background: #fff; border-radius: 10px; padding: 14px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
   .boardCard:active { background: #f0f0f0; }
   .boardCard .bnum { font-weight: 700; font-size: 14px; min-width: 56px; color: #555; }
@@ -46,7 +43,6 @@
   .res.pending { color: #ccc; }
   .res.done { color: #1a7a32; }
 
-  /* Result modal */
   #resultModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 50; align-items: center; justify-content: center; padding: 16px; }
   #resultModal.active { display: flex; }
   .modalBox { background: #fff; border-radius: 14px; padding: 20px; width: 100%; max-width: 380px; }
@@ -62,9 +58,8 @@
   #closeModalBtn { background: #eee; }
   #saveRemarksBtn { background: #1a73e8; color: #fff; }
 
-  /* Chief dashboard */
   .summaryGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
-  .summaryCard { background: #fff; border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .summaryCard { background: #fff; border-radius: 10px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); cursor: pointer; }
   .summaryCard .pct { font-size: 22px; font-weight: 700; }
   .summaryCard .lbl { font-size: 12px; color: #777; }
   .progressBar { height: 6px; background: #eee; border-radius: 3px; margin-top: 8px; overflow: hidden; }
@@ -83,31 +78,27 @@
 
 <main>
 
-  <!-- LOGIN -->
   <div id="loginScreen">
     <h2>Sign in</h2>
     <input type="text" id="usernameInput" placeholder="Username" autocomplete="off" autocapitalize="off">
     <input type="tel" id="pinInput" placeholder="PIN" maxlength="6">
     <div id="loginError"></div>
-    <button onclick="attemptLogin()">Sign in</button>
+    <button id="signInBtn">Sign in</button>
   </div>
 
-  <!-- TOURNAMENT SELECT -->
   <div class="screen" id="tournamentScreen">
     <h2>Select tournament</h2>
     <div class="grid" id="tournamentGrid"></div>
   </div>
 
-  <!-- ROUND SELECT -->
   <div class="screen" id="roundScreen">
     <div class="backbar">
-      <button onclick="showScreen('tournamentScreen')">&larr; Back</button>
+      <button id="roundBackBtn">&larr; Back</button>
       <h2 id="roundScreenTitle"></h2>
     </div>
     <div class="grid" id="roundGrid"></div>
   </div>
 
-  <!-- BOARD LIST -->
   <div class="screen" id="boardScreen">
     <div class="backbar">
       <button id="boardBackBtn">&larr; Back</button>
@@ -116,7 +107,6 @@
     <div id="boardList"></div>
   </div>
 
-  <!-- CHIEF DASHBOARD -->
   <div class="screen" id="dashboardScreen">
     <h2>Live overview &mdash; all categories</h2>
     <div class="summaryGrid" id="summaryGrid"></div>
@@ -124,35 +114,29 @@
 
 </main>
 
-<!-- RESULT MODAL -->
 <div id="resultModal">
   <div class="modalBox">
     <h3 id="modalTitle"></h3>
     <div class="sub" id="modalSub"></div>
     <div class="resBtns">
-      <button onclick="setResult('1 - 0')">1 - 0</button>
-      <button onclick="setResult('0 - 1')">0 - 1</button>
-      <button onclick="setResult('½ - ½')">½ - ½</button>
-      <button onclick="setResult('- / -')">- / -</button>
-      <button class="forfeit" onclick="setResult('+ / -')">+/&minus; (W forfeit win)</button>
-      <button class="forfeit" onclick="setResult('- / +')">&minus;/+ (B forfeit win)</button>
+      <button data-res="1 - 0">1 - 0</button>
+      <button data-res="0 - 1">0 - 1</button>
+      <button data-res="&frac12; - &frac12;">&frac12; - &frac12;</button>
+      <button data-res="- / -">- / -</button>
+      <button class="forfeit" data-res="+ / -">+/&minus; (W forfeit win)</button>
+      <button class="forfeit" data-res="- / +">&minus;/+ (B forfeit win)</button>
     </div>
     <textarea id="remarksInput" placeholder="Remarks (optional)"></textarea>
     <div class="modalActions">
-      <button id="closeModalBtn" onclick="closeModal()">Close</button>
-      <button id="saveRemarksBtn" onclick="saveRemarksOnly()">Save remarks</button>
+      <button id="closeModalBtn">Close</button>
+      <button id="saveRemarksBtn">Save remarks</button>
     </div>
   </div>
 </div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import {
-  getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot,
-  collection, query, where, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-// ===== FILL IN YOUR FIREBASE CONFIG HERE (same as seed.html) =====
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
 const firebaseConfig = {
   apiKey: "AIzaSyAduUzHCW_LCSZoY7mf8U7jqTOlOnyfWT8",
   authDomain: "infok-chesscontrol.firebaseapp.com",
@@ -161,23 +145,21 @@ const firebaseConfig = {
   messagingSenderId: "1022228188225",
   appId: "1:1022228188225:web:565a7f7266f37a2009cac0"
 };
-// ====================================================================
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
 const TOURNAMENT_LABELS = { SJ: 'Sub Juniors', J: 'Juniors', S: 'Seniors', SS: 'Super Seniors' };
 const TOURNAMENT_CLASS = { SJ: 'sj', J: 'j', S: 's', SS: 'ss' };
 
-let currentUser = null;       // { username, name, role, tournamentAccess }
+let currentUser = null;
 let currentTournament = null;
 let currentRound = null;
-let boardUnsub = null;        // live listener cleanup
+let boardUnsub = null;
 let dashUnsub = [];
-let activeGame = null;        // gameId currently open in modal
+let activeGame = null;
 
-// ---------- LOGIN ----------
-window.attemptLogin = async function() {
+function attemptLogin() {
   const username = document.getElementById('usernameInput').value.trim().toLowerCase();
   const pin = document.getElementById('pinInput').value.trim();
   const errEl = document.getElementById('loginError');
@@ -185,20 +167,23 @@ window.attemptLogin = async function() {
 
   if (!username || !pin) { errEl.textContent = 'Enter username and PIN.'; return; }
 
-  try {
-    const snap = await getDoc(doc(db, 'users', username));
-    if (!snap.exists()) { errEl.textContent = 'Unknown username.'; return; }
+  db.collection('users').doc(username).get().then(function(snap) {
+    if (!snap.exists) { errEl.textContent = 'Unknown username.'; return; }
     const u = snap.data();
     if (String(u.pin) !== pin) { errEl.textContent = 'Wrong PIN.'; return; }
     if (u.active !== 'Y') { errEl.textContent = 'This account is inactive.'; return; }
 
-    currentUser = { username, ...u };
+    currentUser = Object.assign({ username: username }, u);
     localStorage.setItem('infok_user', JSON.stringify(currentUser));
     enterApp();
-  } catch (e) {
+  }).catch(function(e) {
     errEl.textContent = 'Login failed: ' + e.message;
-  }
-};
+  });
+}
+document.getElementById('signInBtn').addEventListener('click', attemptLogin);
+document.getElementById('pinInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') attemptLogin();
+});
 
 function tryAutoLogin() {
   const saved = localStorage.getItem('infok_user');
@@ -208,7 +193,7 @@ function tryAutoLogin() {
   }
 }
 
-window.logout = function() {
+function logout() {
   localStorage.removeItem('infok_user');
   currentUser = null;
   detachListeners();
@@ -216,8 +201,8 @@ window.logout = function() {
   document.getElementById('logoutBtn').style.display = 'none';
   document.getElementById('whoLabel').textContent = '';
   showScreen(null);
-};
-document.getElementById('logoutBtn').addEventListener('click', () => window.logout());
+}
+document.getElementById('logoutBtn').addEventListener('click', logout);
 
 function enterApp() {
   document.getElementById('loginScreen').style.display = 'none';
@@ -228,35 +213,45 @@ function enterApp() {
     renderTournamentGrid(true);
     showScreen('tournamentScreen');
   } else {
-    // Single-category arbiter: skip the selector, go straight to rounds
     currentTournament = currentUser.tournamentAccess;
     renderRoundGrid();
     showScreen('roundScreen');
   }
 }
 
-// ---------- SCREEN NAV ----------
-window.showScreen = function(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
   if (id) document.getElementById(id).classList.add('active');
   if (id !== 'boardScreen' && boardUnsub) { boardUnsub(); boardUnsub = null; }
-  if (id !== 'dashboardScreen') { dashUnsub.forEach(fn => fn()); dashUnsub = []; }
-};
+  if (id !== 'dashboardScreen') { dashUnsub.forEach(function(fn) { fn(); }); dashUnsub = []; }
+}
 
 function detachListeners() {
   if (boardUnsub) { boardUnsub(); boardUnsub = null; }
-  dashUnsub.forEach(fn => fn()); dashUnsub = [];
+  dashUnsub.forEach(function(fn) { fn(); }); dashUnsub = [];
 }
 
-// ---------- TOURNAMENT GRID (Chief/Deputy/arbiter10 only) ----------
+document.getElementById('roundBackBtn').addEventListener('click', function() {
+  if (currentUser && currentUser.tournamentAccess === 'ALL') {
+    showScreen('tournamentScreen');
+  }
+});
+document.getElementById('boardBackBtn').addEventListener('click', function() {
+  showScreen('roundScreen');
+});
+
 function renderTournamentGrid(showDashboardTile) {
   const grid = document.getElementById('tournamentGrid');
   grid.innerHTML = '';
-  ['SJ','J','S','SS'].forEach(code => {
+  ['SJ','J','S','SS'].forEach(function(code) {
     const div = document.createElement('div');
     div.className = 'card ' + TOURNAMENT_CLASS[code];
     div.innerHTML = TOURNAMENT_LABELS[code] + '<span class="sub">' + code + '</span>';
-    div.onclick = () => { currentTournament = code; renderRoundGrid(); showScreen('roundScreen'); };
+    div.addEventListener('click', function() {
+      currentTournament = code;
+      renderRoundGrid();
+      showScreen('roundScreen');
+    });
     grid.appendChild(div);
   });
   if (showDashboardTile && (currentUser.role === 'Chief' || currentUser.role === 'Deputy')) {
@@ -264,12 +259,14 @@ function renderTournamentGrid(showDashboardTile) {
     div.className = 'card';
     div.style.borderColor = '#111';
     div.innerHTML = 'Live overview<span class="sub">all categories</span>';
-    div.onclick = () => { renderDashboard(); showScreen('dashboardScreen'); };
+    div.addEventListener('click', function() {
+      renderDashboard();
+      showScreen('dashboardScreen');
+    });
     grid.appendChild(div);
   }
 }
 
-// ---------- ROUND GRID ----------
 function renderRoundGrid() {
   document.getElementById('roundScreenTitle').textContent = TOURNAMENT_LABELS[currentTournament] + ' \u2014 rounds';
   const grid = document.getElementById('roundGrid');
@@ -278,52 +275,40 @@ function renderRoundGrid() {
     const div = document.createElement('div');
     div.className = 'card';
     div.textContent = 'Round ' + r;
-    div.onclick = () => { currentRound = r; openBoardList(); };
+    div.addEventListener('click', (function(round) {
+      return function() { currentRound = round; openBoardList(); };
+    })(r));
     grid.appendChild(div);
   }
 }
-// Back button on round screen goes to tournament grid only if user has ALL access
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelector('#roundScreen .backbar button').addEventListener('click', () => {
-    if (currentUser && currentUser.tournamentAccess === 'ALL') {
-      showScreen('tournamentScreen');
-    } else {
-      // single-category arbiters have nowhere "back" to go except re-login
-      showScreen('roundScreen');
-    }
-  });
-});
 
-// ---------- BOARD LIST (live) ----------
 function openBoardList() {
   document.getElementById('boardScreenTitle').textContent =
     TOURNAMENT_LABELS[currentTournament] + ' \u2014 Round ' + currentRound;
-  document.getElementById('boardBackBtn').onclick = () => showScreen('roundScreen');
   showScreen('boardScreen');
 
   if (boardUnsub) boardUnsub();
-  const q = query(collection(db, 'games'),
-    where('tournament', '==', currentTournament),
-    where('round', '==', currentRound));
-
-  boardUnsub = onSnapshot(q, snap => {
-    const games = [];
-    snap.forEach(d => games.push(d.data()));
-    games.sort((a, b) => {
-      const an = parseInt(a.board.split('-').pop(), 10);
-      const bn = parseInt(b.board.split('-').pop(), 10);
-      return an - bn;
+  boardUnsub = db.collection('games')
+    .where('tournament', '==', currentTournament)
+    .where('round', '==', currentRound)
+    .onSnapshot(function(snap) {
+      const games = [];
+      snap.forEach(function(d) { games.push(d.data()); });
+      games.sort(function(a, b) {
+        const an = parseInt(a.board.split('-').pop(), 10);
+        const bn = parseInt(b.board.split('-').pop(), 10);
+        return an - bn;
+      });
+      renderBoardList(games);
+    }, function(err) {
+      document.getElementById('boardList').textContent = 'Error loading boards: ' + err.message;
     });
-    renderBoardList(games);
-  }, err => {
-    document.getElementById('boardList').textContent = 'Error loading boards: ' + err.message;
-  });
 }
 
 function renderBoardList(games) {
   const list = document.getElementById('boardList');
   list.innerHTML = '';
-  games.forEach(g => {
+  games.forEach(function(g) {
     const div = document.createElement('div');
     div.className = 'boardCard';
     const white = g.white || '(TBD)';
@@ -334,64 +319,63 @@ function renderBoardList(games) {
       '<div class="bnum">' + g.board + '</div>' +
       '<div class="players">' + white + '<br><span class="vs">vs</span> ' + black + '</div>' +
       '<div class="res ' + resClass + '">' + resText + '</div>';
-    div.onclick = () => openResultModal(g);
+    div.addEventListener('click', function() { openResultModal(g); });
     list.appendChild(div);
   });
 }
 
-// ---------- RESULT MODAL ----------
-window.openResultModal = function(game) {
+function openResultModal(game) {
   activeGame = game.gameId;
   document.getElementById('modalTitle').textContent = 'Board ' + game.board;
   document.getElementById('modalSub').textContent =
     (game.white || '(TBD)') + '  vs  ' + (game.black || '(TBD)');
   document.getElementById('remarksInput').value = game.remarks || '';
   document.getElementById('resultModal').classList.add('active');
-};
+}
 
-window.closeModal = function() {
+function closeModal() {
   document.getElementById('resultModal').classList.remove('active');
   activeGame = null;
-};
+}
+document.getElementById('closeModalBtn').addEventListener('click', closeModal);
 
-window.setResult = async function(resultValue) {
+document.querySelectorAll('.resBtns button').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    setResult(btn.getAttribute('data-res'));
+  });
+});
+
+function setResult(resultValue) {
   if (!activeGame) return;
-  try {
-    await updateDoc(doc(db, 'games', activeGame), {
-      result: resultValue,
-      remarks: document.getElementById('remarksInput').value.trim(),
-      updatedBy: currentUser.username,
-      updatedTime: serverTimestamp()
-    });
-    closeModal();
-  } catch (e) {
+  db.collection('games').doc(activeGame).update({
+    result: resultValue,
+    remarks: document.getElementById('remarksInput').value.trim(),
+    updatedBy: currentUser.username,
+    updatedTime: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(closeModal).catch(function(e) {
     alert('Could not save result: ' + e.message);
-  }
-};
+  });
+}
 
-window.saveRemarksOnly = async function() {
+document.getElementById('saveRemarksBtn').addEventListener('click', function() {
   if (!activeGame) return;
-  try {
-    await updateDoc(doc(db, 'games', activeGame), {
-      remarks: document.getElementById('remarksInput').value.trim(),
-      updatedBy: currentUser.username,
-      updatedTime: serverTimestamp()
-    });
-    closeModal();
-  } catch (e) {
+  db.collection('games').doc(activeGame).update({
+    remarks: document.getElementById('remarksInput').value.trim(),
+    updatedBy: currentUser.username,
+    updatedTime: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(closeModal).catch(function(e) {
     alert('Could not save remarks: ' + e.message);
-  }
-};
+  });
+});
 
-// ---------- CHIEF DASHBOARD ----------
 function renderDashboard() {
   showScreen('dashboardScreen');
-  dashUnsub.forEach(fn => fn());
+  dashUnsub.forEach(function(fn) { fn(); });
   dashUnsub = [];
   const grid = document.getElementById('summaryGrid');
   grid.innerHTML = '';
 
-  ['SJ','J','S','SS'].forEach(code => {
+  ['SJ','J','S','SS'].forEach(function(code) {
     const card = document.createElement('div');
     card.className = 'summaryCard';
     card.innerHTML =
@@ -399,26 +383,29 @@ function renderDashboard() {
       '<div class="pct" id="pct-' + code + '">&mdash;</div>' +
       '<div class="lbl" id="cnt-' + code + '"></div>' +
       '<div class="progressBar"><div id="bar-' + code + '" style="width:0%"></div></div>';
-    card.onclick = () => { currentTournament = code; renderRoundGrid(); showScreen('roundScreen'); };
+    card.addEventListener('click', function() {
+      currentTournament = code;
+      renderRoundGrid();
+      showScreen('roundScreen');
+    });
     grid.appendChild(card);
 
-    const q = query(collection(db, 'games'), where('tournament', '==', code));
-    const unsub = onSnapshot(q, snap => {
-      let total = 0, done = 0;
-      snap.forEach(d => {
-        total++;
-        if (d.data().result) done++;
+    const unsub = db.collection('games').where('tournament', '==', code)
+      .onSnapshot(function(snap) {
+        let total = 0, done = 0;
+        snap.forEach(function(d) {
+          total++;
+          if (d.data().result) done++;
+        });
+        const pct = total ? Math.round((done / total) * 100) : 0;
+        document.getElementById('pct-' + code).textContent = pct + '%';
+        document.getElementById('cnt-' + code).textContent = done + ' / ' + total + ' boards reported';
+        document.getElementById('bar-' + code).style.width = pct + '%';
       });
-      const pct = total ? Math.round((done / total) * 100) : 0;
-      document.getElementById('pct-' + code).textContent = pct + '%';
-      document.getElementById('cnt-' + code).textContent = done + ' / ' + total + ' boards reported';
-      document.getElementById('bar-' + code).style.width = pct + '%';
-    });
     dashUnsub.push(unsub);
   });
 }
 
-// ---------- ENTER ----------
 tryAutoLogin();
 </script>
 </body>
