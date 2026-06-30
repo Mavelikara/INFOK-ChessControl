@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Import pairings &mdash; INFOK-ChessControl</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background: #f4f4f5; color: #1a1a1a; }
+  header { background: #111; color: #fff; padding: 14px 16px; }
+  header h1 { font-size: 17px; margin: 0; }
+  main { padding: 16px; max-width: 640px; margin: 0 auto; }
+  .step { background: #fff; border-radius: 12px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .step h2 { font-size: 15px; margin: 0 0 8px; }
+  .step p { font-size: 14px; color: #555; line-height: 1.5; margin: 0 0 8px; }
+  select { width: 100%; padding: 14px; font-size: 18px; border: 1px solid #ccc; border-radius: 8px; background: #fff; }
+  textarea { width: 100%; min-height: 220px; padding: 12px; font-size: 13px; font-family: monospace; border: 1px solid #ccc; border-radius: 8px; resize: vertical; }
+  button { width: 100%; padding: 16px; font-size: 17px; font-weight: 600; background: #1a73e8; color: #fff; border: none; border-radius: 10px; margin-top: 6px; }
+  button:disabled { background: #999; }
+  #result { margin-top: 14px; padding: 14px; border-radius: 10px; font-size: 14px; white-space: pre-wrap; display: none; }
+  #result.ok { background: #e6f4ea; color: #1a7a32; display: block; }
+  #result.err { background: #fce8e6; color: #c5221f; display: block; }
+</style>
+</head>
+<body>
+
+<header><h1>INFOK-ChessControl &mdash; Import round pairings</h1></header>
+
+<main>
+
+  <div class="step">
+    <h2>Step 1 &mdash; In Swiss-Manager</h2>
+    <p>Export this round's pairing for ONE category as Excel. Open it, press Ctrl+A to select everything, then Ctrl+C to copy.</p>
+  </div>
+
+  <div class="step">
+    <h2>Step 2 &mdash; Which category is this?</h2>
+    <select id="codeSelect">
+      <option value="">Choose category&hellip;</option>
+      <option value="SJ">Sub Juniors (SJ)</option>
+      <option value="J">Juniors (J)</option>
+      <option value="S">Seniors (S)</option>
+      <option value="SS">Super Seniors (SS)</option>
+    </select>
+  </div>
+
+  <div class="step">
+    <h2>Step 3 &mdash; Paste the pairing here</h2>
+    <p>Click in the box below, then press Ctrl+V to paste.</p>
+    <textarea id="pasteArea" placeholder="Click here, then paste (Ctrl+V)"></textarea>
+  </div>
+
+  <button id="importBtn">Import this pairing</button>
+  <div id="result"></div>
+
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAduUzHCW_LCSZoY7mf8U7jqTOlOnyfWT8",
+  authDomain: "infok-chesscontrol.firebaseapp.com",
+  projectId: "infok-chesscontrol",
+  storageBucket: "infok-chesscontrol.firebasestorage.app",
+  messagingSenderId: "1022228188225",
+  appId: "1:1022228188225:web:565a7f7266f37a2009cac0"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+function showResult(msg, isError) {
+  const el = document.getElementById('result');
+  el.textContent = msg;
+  el.className = isError ? 'err' : 'ok';
+}
+
+document.getElementById('importBtn').addEventListener('click', function() {
+  const code = document.getElementById('codeSelect').value;
+  const raw = document.getElementById('pasteArea').value;
+
+  if (!code) { showResult('Please choose a category first.', true); return; }
+  if (!raw.trim()) { showResult('Please paste the pairing data first.', true); return; }
+
+  // Excel paste comes in as tab-separated rows
+  const rows = raw.split(/\r?\n/).map(function(line) { return line.split('\t'); });
+
+  // Find round number
+  let round = null;
+  for (const row of rows) {
+    const m = String(row[0] || '').match(/Round\s*(\d+)/i);
+    if (m) { round = parseInt(m[1], 10); break; }
+  }
+  if (!round) {
+    showResult('Could not find "Round N" in the pasted data. Make sure you copied the whole sheet, including the top rows.', true);
+    return;
+  }
+
+  // Find header row ("Bo.")
+  let headerIdx = -1;
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][0]).trim() === 'Bo.') { headerIdx = i; break; }
+  }
+  if (headerIdx === -1) {
+    showResult('Could not find the pairing table header ("Bo."). Make sure you copied the whole sheet.', true);
+    return;
+  }
+
+  const updates = [];
+  const byes = [];
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const row = rows[i];
+    const boardRaw = (row[0] || '').trim();
+    const white = (row[2] || '').trim();
+    const black = (row[6] || '').trim();
+
+    if (!boardRaw && !white && !black) continue;
+    if (String(row[0]).indexOf('Swiss-Manager') !== -1) break;
+    if (String(row[0]).indexOf('Mail:') !== -1) break;
+
+    if (!boardRaw && black.toLowerCase() === 'bye') {
+      byes.push(white);
+      continue;
+    }
+    if (!boardRaw) continue;
+
+    const boardNum = parseInt(boardRaw, 10);
+    if (!boardNum) continue;
+    const boardStr = String(boardNum).padStart(2, '0');
+    const gameId = code + '-R' + round + '-' + boardStr;
+    updates.push({ gameId: gameId, white: white, black: black });
+  }
+
+  if (updates.length === 0) {
+    showResult('No boards found to import. Check that the right category and round were pasted.', true);
+    return;
+  }
+
+  document.getElementById('importBtn').disabled = true;
+  showResult('Importing ' + updates.length + ' boards...', false);
+
+  const batch = db.batch();
+  updates.forEach(function(u) {
+    batch.update(db.collection('games').doc(u.gameId), { white: u.white, black: u.black });
+  });
+
+  batch.commit().then(function() {
+    let msg = 'Done. Round ' + round + ', ' + code + ': updated ' + updates.length + ' board(s).';
+    if (byes.length > 0) {
+      msg += '\n\nBye this round (no board, automatic win): ' + byes.join(', ');
+    }
+    showResult(msg, false);
+    document.getElementById('importBtn').disabled = false;
+    document.getElementById('pasteArea').value = '';
+  }).catch(function(e) {
+    showResult('Import failed: ' + e.message + '\n\nIf this says "permission denied", the Firestore rules may need updating -- contact Jacob.', true);
+    document.getElementById('importBtn').disabled = false;
+  });
+});
+</script>
+</body>
+</html>
