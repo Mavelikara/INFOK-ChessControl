@@ -145,7 +145,11 @@
   </div>
 
   <div class="screen" id="dashboardScreen">
-    <h2>Live overview &mdash; all categories</h2>
+    <h2>Live overview</h2>
+    <div class="reportActions" style="margin-bottom:4px;">
+      <button id="dashAllRoundsBtn">All rounds (total)</button>
+    </div>
+    <div class="roundPicker" id="dashRoundPicker"></div>
     <div class="summaryGrid" id="summaryGrid"></div>
   </div>
 
@@ -433,12 +437,47 @@ document.getElementById('saveRemarksBtn').addEventListener('click', function() {
   });
 });
 
+let dashRound = 'all';
+
 function renderDashboard() {
   showScreen('dashboardScreen');
+  renderDashRoundPicker();
+  loadDashboard(dashRound);
+}
+
+function renderDashRoundPicker() {
+  const picker = document.getElementById('dashRoundPicker');
+  picker.innerHTML = '';
+  for (let r = 1; r <= 6; r++) {
+    const btn = document.createElement('button');
+    btn.textContent = 'Round ' + r;
+    if (r === dashRound) btn.classList.add('activeRound');
+    btn.addEventListener('click', function() {
+      dashRound = r;
+      renderDashRoundPicker();
+      loadDashboard(dashRound);
+    });
+    picker.appendChild(btn);
+  }
+  const allBtn = document.getElementById('dashAllRoundsBtn');
+  allBtn.classList.toggle('activeRound', dashRound === 'all');
+}
+document.getElementById('dashAllRoundsBtn').addEventListener('click', function() {
+  dashRound = 'all';
+  renderDashRoundPicker();
+  loadDashboard(dashRound);
+});
+
+function loadDashboard(round) {
   dashUnsub.forEach(function(fn) { fn(); });
   dashUnsub = [];
   const grid = document.getElementById('summaryGrid');
   grid.innerHTML = '';
+
+  const heading = document.querySelector('#dashboardScreen h2');
+  heading.textContent = round === 'all'
+    ? 'Live overview \u2014 all rounds'
+    : 'Live overview \u2014 Round ' + round;
 
   ['SJ','J','S','SS'].forEach(function(code) {
     const card = document.createElement('div');
@@ -455,18 +494,20 @@ function renderDashboard() {
     });
     grid.appendChild(card);
 
-    const unsub = db.collection('games').where('tournament', '==', code)
-      .onSnapshot(function(snap) {
-        let total = 0, done = 0;
-        snap.forEach(function(d) {
-          total++;
-          if (d.data().result) done++;
-        });
-        const pct = total ? Math.round((done / total) * 100) : 0;
-        document.getElementById('pct-' + code).textContent = pct + '%';
-        document.getElementById('cnt-' + code).textContent = done + ' / ' + total + ' boards reported';
-        document.getElementById('bar-' + code).style.width = pct + '%';
+    let q = db.collection('games').where('tournament', '==', code);
+    if (round !== 'all') q = q.where('round', '==', round);
+
+    const unsub = q.onSnapshot(function(snap) {
+      let total = 0, done = 0;
+      snap.forEach(function(d) {
+        total++;
+        if (d.data().result) done++;
       });
+      const pct = total ? Math.round((done / total) * 100) : 0;
+      document.getElementById('pct-' + code).textContent = pct + '%';
+      document.getElementById('cnt-' + code).textContent = done + ' / ' + total + ' boards reported';
+      document.getElementById('bar-' + code).style.width = pct + '%';
+    });
     dashUnsub.push(unsub);
   });
 }
