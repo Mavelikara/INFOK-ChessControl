@@ -108,8 +108,26 @@
     td.cbcell, .catClearBtn { display: none !important; }
   }
 
+  /* Attendance */
+  .playerRow { background: #fff; border-radius: 10px; padding: 14px 16px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
+  .playerRow.present { border-left: 5px solid #34a853; background: #f0faf3; }
+  .playerRow.withdrawn { border-left: 5px solid #d93025; background: #fce8e6; opacity: 0.6; }
+  .playerRow .pname { font-size: 15px; font-weight: 500; flex: 1; }
+  .playerRow .pgender { font-size: 11px; color: #999; margin-left: 6px; }
+  .playerRowBtns { display: flex; gap: 6px; }
+  .btnPresent { padding: 10px 16px; font-size: 14px; font-weight: 700; border: none; border-radius: 8px; background: #34a853; color: #fff; min-width: 90px; }
+  .btnPresent.ticked { background: #1a7a32; }
+  .btnWithdrawn { padding: 10px 12px; font-size: 13px; border: none; border-radius: 8px; background: #f1f3f4; color: #444; }
+  .btnWithdrawn.ticked { background: #d93025; color: #fff; }
+  .summaryPill { padding: 8px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .summaryPill.sj { border-left: 4px solid #34a853; }
+  .summaryPill.j  { border-left: 4px solid #1a73e8; }
+  .summaryPill.s  { border-left: 4px solid #f9ab00; }
+  .summaryPill.ss { border-left: 4px solid #d93025; }
+  .absentList { margin-top: 10px; font-size: 13px; }
+  .absentName { display: inline-block; background: #fff3cd; padding: 3px 8px; border-radius: 4px; margin: 2px; font-size: 13px; }
+
   @media print {
-    header, .backbar, .reportActions, .roundPicker { display: none !important; }
     body { background: #fff; }
     main { padding: 0; max-width: 100%; }
     .catSection { page-break-inside: avoid; margin-bottom: 18px; }
@@ -181,6 +199,27 @@
       <button id="printReportBtn">Print this round</button>
     </div>
     <div id="reportBody"></div>
+  </div>
+
+  <!-- ATTENDANCE COUNTER SCREEN -->
+  <div class="screen" id="attendanceScreen">
+    <div class="backbar">
+      <button id="attendanceBackBtn">&#8592; BACK</button>
+    </div>
+    <div id="attendanceSummaryBar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"></div>
+    <input type="text" id="attendanceSearch" placeholder="Search name..." autocomplete="off"
+      style="width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;">
+    <div id="attendanceList"></div>
+  </div>
+
+  <!-- ATTENDANCE MASTER SCREEN -->
+  <div class="screen" id="attendanceMasterScreen">
+    <div class="backbar">
+      <button id="attendanceMasterBackBtn">&#8592; BACK TO TOURNAMENTS</button>
+    </div>
+    <h2>Attendance &mdash; all categories</h2>
+    <div class="summaryGrid" id="attendanceMasterGrid"></div>
+    <div id="attendanceMasterDetail" style="margin-top:16px;"></div>
   </div>
 
 </main>
@@ -280,7 +319,13 @@ function enterApp() {
   document.getElementById('logoutBtn').style.display = 'inline-block';
   document.getElementById('whoLabel').textContent = currentUser.name || currentUser.username;
 
-  if (currentUser.tournamentAccess === 'ALL') {
+  if (currentUser.role === 'Counter') {
+    // Counter goes straight to attendance for their category
+    openAttendance(currentUser.tournamentAccess);
+    document.getElementById('attendanceBackBtn').style.display = 'none';
+  } else if (currentUser.role === 'RegMaster') {
+    openAttendanceMaster();
+  } else if (currentUser.tournamentAccess === 'ALL') {
     renderTournamentGrid(true);
     showScreen('tournamentScreen');
   } else {
@@ -319,6 +364,12 @@ document.getElementById('reportBackBtn').addEventListener('click', function() {
 document.getElementById('dashBackBtn').addEventListener('click', function() {
   showScreen('tournamentScreen');
 });
+document.getElementById('attendanceBackBtn').addEventListener('click', function() {
+  showScreen('tournamentScreen');
+});
+document.getElementById('attendanceMasterBackBtn').addEventListener('click', function() {
+  showScreen('tournamentScreen');
+});
 
 function renderTournamentGrid(showDashboardTile) {
   const grid = document.getElementById('tournamentGrid');
@@ -354,6 +405,16 @@ function renderTournamentGrid(showDashboardTile) {
       showScreen('reportScreen');
     });
     grid.appendChild(reportDiv);
+
+    const attDiv = document.createElement('div');
+    attDiv.className = 'card';
+    attDiv.style.borderColor = '#0d652d';
+    attDiv.style.background = '#e8f6ed';
+    attDiv.innerHTML = 'Attendance<span class="sub">who has arrived</span>';
+    attDiv.addEventListener('click', function() {
+      openAttendanceMaster();
+    });
+    grid.appendChild(attDiv);
   }
 }
 
@@ -698,6 +759,180 @@ function loadReport(round) {
     });
   }).catch(function(e) {
     body.innerHTML = '<p style="color:#c00;">Could not load report: ' + e.message + '</p>';
+  });
+}
+
+// ---------- ATTENDANCE ----------
+let attendanceUnsub = null;
+let currentAttCat = null;
+let allPlayers = [];
+
+function openAttendance(cat) {
+  currentAttCat = cat;
+  showScreen('attendanceScreen');
+  document.getElementById('attendanceSearch').value = '';
+  document.getElementById('attendanceList').innerHTML = '<p style="color:#777;font-size:14px;">Loading...</p>';
+
+  if (attendanceUnsub) { attendanceUnsub(); attendanceUnsub = null; }
+
+  let q = db.collection('players');
+  if (cat !== 'ALL') q = q.where('category', '==', cat);
+
+  attendanceUnsub = q.onSnapshot(function(snap) {
+    allPlayers = [];
+    snap.forEach(function(d) { allPlayers.push(Object.assign({ id: d.id }, d.data())); });
+    allPlayers.sort(function(a, b) { return a.name.localeCompare(b.name); });
+    renderAttendanceList(allPlayers);
+    renderAttendanceSummary(allPlayers, cat);
+  });
+
+  document.getElementById('attendanceSearch').oninput = function() {
+    const q = this.value.trim().toLowerCase();
+    const filtered = q ? allPlayers.filter(function(p) {
+      return p.name.toLowerCase().includes(q);
+    }) : allPlayers;
+    renderAttendanceList(filtered);
+  };
+}
+
+function renderAttendanceSummary(players, cat) {
+  const bar = document.getElementById('attendanceSummaryBar');
+  bar.innerHTML = '';
+  const cats = cat === 'ALL' ? ['SJ','J','S','SS'] : [cat];
+  cats.forEach(function(c) {
+    const catPlayers = players.filter(function(p) { return p.category === c; });
+    const present = catPlayers.filter(function(p) { return p.present; }).length;
+    const withdrawn = catPlayers.filter(function(p) { return p.withdrawn; }).length;
+    const total = catPlayers.length;
+    const pill = document.createElement('div');
+    pill.className = 'summaryPill ' + TOURNAMENT_CLASS[c];
+    pill.textContent = TOURNAMENT_LABELS[c] + ': ' + present + ' / ' + total +
+      (withdrawn ? ' (' + withdrawn + ' withdrawn)' : '');
+    bar.appendChild(pill);
+  });
+}
+
+function renderAttendanceList(players) {
+  const list = document.getElementById('attendanceList');
+  list.innerHTML = '';
+  if (players.length === 0) {
+    list.innerHTML = '<p style="color:#999;font-size:14px;">No players found.</p>';
+    return;
+  }
+  players.forEach(function(p) {
+    const row = document.createElement('div');
+    row.className = 'playerRow' + (p.present ? ' present' : '') + (p.withdrawn ? ' withdrawn' : '');
+
+    const genderIcon = p.gender === 'Female' ? ' ♀' : ' ♂';
+    const catBadge = currentAttCat === 'ALL'
+      ? ' <span style="font-size:11px;background:#eee;padding:2px 6px;border-radius:4px;">' + p.category + '</span>' : '';
+
+    const presentLabel = p.present ? '✓ PRESENT' : 'PRESENT';
+    const withdrawnLabel = p.withdrawn ? '✗ WITHDRAWN' : 'WITHDRAWN';
+
+    row.innerHTML =
+      '<div><span class="pname">' + p.name + '</span>' +
+      '<span class="pgender">' + genderIcon + catBadge + '</span></div>' +
+      '<div class="playerRowBtns">' +
+      '<button class="btnPresent' + (p.present ? ' ticked' : '') + '" data-id="' + p.id + '" data-present="' + p.present + '">' + presentLabel + '</button>' +
+      '<button class="btnWithdrawn' + (p.withdrawn ? ' ticked' : '') + '" data-id="' + p.id + '" data-withdrawn="' + p.withdrawn + '">' + withdrawnLabel + '</button>' +
+      '</div>';
+
+    // Present toggle
+    row.querySelector('.btnPresent').addEventListener('click', function() {
+      const newVal = !(p.present);
+      db.collection('players').doc(p.id).update({
+        present: newVal,
+        withdrawn: newVal ? false : p.withdrawn, // un-withdrawn if marking present
+        markedBy: currentUser.username,
+        markedTime: firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(function(e) { alert('Could not update: ' + e.message); });
+    });
+
+    // Withdrawn toggle
+    row.querySelector('.btnWithdrawn').addEventListener('click', function() {
+      if (!p.withdrawn) {
+        if (!confirm(p.name + ' — mark as Withdrawn?\n\nThis means they have confirmed they are not participating.')) return;
+      }
+      db.collection('players').doc(p.id).update({
+        withdrawn: !p.withdrawn,
+        present: false,
+        markedBy: currentUser.username,
+        markedTime: firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(function(e) { alert('Could not update: ' + e.message); });
+    });
+
+    list.appendChild(row);
+  });
+}
+
+// ---------- ATTENDANCE MASTER ----------
+let masterUnsub = null;
+
+function openAttendanceMaster() {
+  showScreen('attendanceMasterScreen');
+  const grid = document.getElementById('attendanceMasterGrid');
+  const detail = document.getElementById('attendanceMasterDetail');
+  grid.innerHTML = '';
+  detail.innerHTML = '';
+
+  if (masterUnsub) { masterUnsub(); masterUnsub = null; }
+
+  masterUnsub = db.collection('players').onSnapshot(function(snap) {
+    const players = [];
+    snap.forEach(function(d) { players.push(d.data()); });
+    renderMasterGrid(players, grid);
+    renderAbsentList(players, detail);
+  });
+}
+
+function renderMasterGrid(players, grid) {
+  grid.innerHTML = '';
+  ['SJ','J','S','SS'].forEach(function(code) {
+    const cat = players.filter(function(p) { return p.category === code; });
+    const present = cat.filter(function(p) { return p.present; }).length;
+    const withdrawn = cat.filter(function(p) { return p.withdrawn; }).length;
+    const absent = cat.length - present - withdrawn;
+    const pct = cat.length ? Math.round((present / cat.length) * 100) : 0;
+
+    const card = document.createElement('div');
+    card.className = 'summaryCard ' + TOURNAMENT_CLASS[code];
+    card.style.cursor = 'pointer';
+    card.innerHTML =
+      '<div class="lbl">' + TOURNAMENT_LABELS[code] + '</div>' +
+      '<div class="pct">' + present + ' / ' + cat.length + '</div>' +
+      '<div class="lbl">' + pct + '% present' +
+        (withdrawn ? ' &nbsp;·&nbsp; ' + withdrawn + ' withdrawn' : '') +
+        (absent ? ' &nbsp;·&nbsp; <strong>' + absent + ' absent</strong>' : '') +
+      '</div>' +
+      '<div class="progressBar"><div style="width:' + pct + '%;height:100%;background:#1a7a32;"></div></div>';
+
+    card.addEventListener('click', function() {
+      if (attendanceUnsub) { attendanceUnsub(); attendanceUnsub = null; }
+      openAttendance(code);
+      document.getElementById('attendanceBackBtn').style.display = '';
+    });
+    grid.appendChild(card);
+  });
+}
+
+function renderAbsentList(players, detail) {
+  detail.innerHTML = '';
+  ['SJ','J','S','SS'].forEach(function(code) {
+    const absent = players.filter(function(p) {
+      return p.category === code && !p.present && !p.withdrawn;
+    }).sort(function(a,b) { return a.name.localeCompare(b.name); });
+    if (absent.length === 0) return;
+    const sec = document.createElement('div');
+    sec.className = 'catSection ' + TOURNAMENT_CLASS[code];
+    sec.style.marginBottom = '12px';
+    sec.innerHTML = '<strong style="font-size:14px;">' + TOURNAMENT_LABELS[code] +
+      ' — ' + absent.length + ' not yet arrived</strong><div style="margin-top:6px;">' +
+      absent.map(function(p) {
+        return '<span class="absentName">' + p.name +
+          (p.gender === 'Female' ? ' ♀' : '') + '</span>';
+      }).join('') + '</div>';
+    detail.appendChild(sec);
   });
 }
 
