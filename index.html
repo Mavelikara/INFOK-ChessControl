@@ -324,6 +324,7 @@ function enterApp() {
     openAttendance(currentUser.tournamentAccess);
     document.getElementById('attendanceBackBtn').style.display = 'none';
   } else if (currentUser.role === 'RegMaster') {
+    document.getElementById('attendanceMasterBackBtn').style.display = 'none';
     openAttendanceMaster();
   } else if (currentUser.tournamentAccess === 'ALL') {
     renderTournamentGrid(true);
@@ -365,7 +366,11 @@ document.getElementById('dashBackBtn').addEventListener('click', function() {
   showScreen('tournamentScreen');
 });
 document.getElementById('attendanceBackBtn').addEventListener('click', function() {
-  showScreen('tournamentScreen');
+  if (currentUser && currentUser.role === 'RegMaster') {
+    openAttendanceMaster();
+  } else {
+    showScreen('tournamentScreen');
+  }
 });
 document.getElementById('attendanceMasterBackBtn').addEventListener('click', function() {
   showScreen('tournamentScreen');
@@ -910,7 +915,9 @@ function renderMasterGrid(players, grid) {
     card.addEventListener('click', function() {
       if (attendanceUnsub) { attendanceUnsub(); attendanceUnsub = null; }
       openAttendance(code);
-      document.getElementById('attendanceBackBtn').style.display = '';
+      var backBtn = document.getElementById('attendanceBackBtn');
+      backBtn.style.display = '';
+      backBtn.textContent = '\u2190 BACK TO OVERVIEW';
     });
     grid.appendChild(card);
   });
