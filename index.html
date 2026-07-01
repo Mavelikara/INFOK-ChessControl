@@ -34,9 +34,10 @@
   .card.ss { border-color: #d93025; background: #fce8e6; }
   .card .sub { display: block; font-size: 12px; font-weight: 400; color: #777; margin-top: 4px; }
 
-  .backbar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-  .backbar button { background: none; border: none; font-size: 15px; color: #1a73e8; padding: 6px 0; }
-  .backbar h2 { font-size: 16px; margin: 0; }
+  .backbar { display: flex; align-items: center; gap: 0; margin-bottom: 16px; }
+  .backbar button { background: #1a73e8; color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; padding: 14px 20px; letter-spacing: 0.5px; width: 100%; text-align: left; }
+  .backbar button:active { background: #1558b0; }
+  .backbar h2 { display: none; }
 
   .boardCard { background: #fff; border-radius: 10px; padding: 14px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
   .boardCard:active { background: #f0f0f0; }
@@ -143,7 +144,7 @@
 
   <div class="screen" id="roundScreen">
     <div class="backbar">
-      <button id="roundBackBtn">&larr; Back</button>
+      <button id="roundBackBtn">&#8592; BACK TO TOURNAMENTS</button>
       <h2 id="roundScreenTitle"></h2>
     </div>
     <div class="grid" id="roundGrid"></div>
@@ -151,13 +152,16 @@
 
   <div class="screen" id="boardScreen">
     <div class="backbar">
-      <button id="boardBackBtn">&larr; Back</button>
+      <button id="boardBackBtn">&#8592; BACK TO ROUNDS</button>
       <h2 id="boardScreenTitle"></h2>
     </div>
     <div id="boardList"></div>
   </div>
 
   <div class="screen" id="dashboardScreen">
+    <div class="backbar">
+      <button id="dashBackBtn">&#8592; BACK TO TOURNAMENTS</button>
+    </div>
     <h2>Live overview</h2>
     <div class="reportActions" style="margin-bottom:4px;">
       <button id="dashAllRoundsBtn">All rounds (total)</button>
@@ -168,7 +172,7 @@
 
   <div class="screen" id="reportScreen">
     <div class="backbar">
-      <button id="reportBackBtn">&larr; Back</button>
+      <button id="reportBackBtn">&#8592; BACK TO TOURNAMENTS</button>
       <h2>Round report &mdash; all categories</h2>
     </div>
     <div class="roundPicker" id="roundPicker"></div>
@@ -281,6 +285,7 @@ function enterApp() {
     showScreen('tournamentScreen');
   } else {
     currentTournament = currentUser.tournamentAccess;
+    document.getElementById('roundBackBtn').style.display = 'none';
     renderRoundGrid();
     showScreen('roundScreen');
   }
@@ -302,11 +307,16 @@ document.getElementById('roundBackBtn').addEventListener('click', function() {
   if (currentUser && currentUser.tournamentAccess === 'ALL') {
     showScreen('tournamentScreen');
   }
+  // single-category arbiters have nowhere back to go — button does nothing
+  // (they should use Log out instead)
 });
 document.getElementById('boardBackBtn').addEventListener('click', function() {
   showScreen('roundScreen');
 });
 document.getElementById('reportBackBtn').addEventListener('click', function() {
+  showScreen('tournamentScreen');
+});
+document.getElementById('dashBackBtn').addEventListener('click', function() {
   showScreen('tournamentScreen');
 });
 
