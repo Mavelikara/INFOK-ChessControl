@@ -206,10 +206,45 @@
     <div class="backbar">
       <button id="attendanceBackBtn">&#8592; BACK</button>
     </div>
-    <div id="attendanceSummaryBar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"></div>
-    <input type="text" id="attendanceSearch" placeholder="Search name..." autocomplete="off"
-      style="width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;">
-    <div id="attendanceList"></div>
+
+    <!-- Tab bar -->
+    <div style="display:flex;gap:0;margin-bottom:14px;border-bottom:2px solid var(--border,#e0e0e0)">
+      <button id="tabAttBtn" onclick="switchAttTab('attendance')"
+        style="flex:1;padding:12px;font-size:15px;font-weight:600;border:none;background:transparent;border-bottom:3px solid #1a73e8;color:#1a73e8;cursor:pointer">
+        Attendance
+      </button>
+      <button id="tabBoardBtn" onclick="switchAttTab('board')"
+        style="flex:1;padding:12px;font-size:15px;font-weight:600;border:none;background:transparent;border-bottom:3px solid transparent;color:#999;cursor:pointer">
+        Board call
+      </button>
+    </div>
+
+    <!-- Attendance panel -->
+    <div id="panelAttendance">
+      <div id="attendanceSummaryBar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;"></div>
+      <input type="text" id="attendanceSearch" placeholder="Search name..." autocomplete="off"
+        style="width:100%;padding:12px;font-size:15px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px;">
+      <div id="attendanceList"></div>
+    </div>
+
+    <!-- Board call panel -->
+    <div id="panelBoard" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div class="roundPicker" id="boardCallRoundPicker" style="margin:0"></div>
+        <div style="display:flex;gap:6px">
+          <button id="boardCallWhiteBtn" onclick="setBoardCallMode('white')"
+            style="padding:10px 16px;font-size:14px;font-weight:600;border-radius:8px;border:2px solid #111;background:#fff;color:#111;cursor:pointer">
+            &#9633; White
+          </button>
+          <button id="boardCallBlackBtn" onclick="setBoardCallMode('black')"
+            style="padding:10px 16px;font-size:14px;font-weight:600;border-radius:8px;border:2px solid #ddd;background:#f5f5f5;color:#777;cursor:pointer">
+            &#9632; Black
+          </button>
+        </div>
+      </div>
+      <div id="boardCallCatPicker" style="display:none;margin-bottom:10px"></div>
+      <div id="boardCallList"></div>
+    </div>
   </div>
 
   <!-- ATTENDANCE MASTER SCREEN -->
@@ -941,6 +976,117 @@ function renderAbsentList(players, detail) {
       }).join('') + '</div>';
     detail.appendChild(sec);
   });
+}
+
+// ---------- ATTENDANCE SCREEN TAB SWITCHING ----------
+function switchAttTab(tab) {
+  var isBoard = tab === 'board';
+  document.getElementById('panelAttendance').style.display = isBoard ? 'none' : 'block';
+  document.getElementById('panelBoard').style.display = isBoard ? 'block' : 'none';
+  document.getElementById('tabAttBtn').style.borderBottomColor = isBoard ? 'transparent' : '#1a73e8';
+  document.getElementById('tabAttBtn').style.color = isBoard ? '#999' : '#1a73e8';
+  document.getElementById('tabBoardBtn').style.borderBottomColor = isBoard ? '#1a73e8' : 'transparent';
+  document.getElementById('tabBoardBtn').style.color = isBoard ? '#1a73e8' : '#999';
+  if (isBoard) renderBoardCallRoundPicker();
+}
+
+// ---------- BOARD CALL ----------
+var boardCallRound = 1;
+var boardCallMode = 'white';
+var boardCallCat = null; // null = use currentAttCat
+
+function renderBoardCallRoundPicker() {
+  var picker = document.getElementById('boardCallRoundPicker');
+  picker.innerHTML = '';
+  for (var r = 1; r <= 6; r++) {
+    var btn = document.createElement('button');
+    btn.textContent = 'Round ' + r;
+    btn.style.cssText = 'padding:8px 14px;font-size:13px;font-weight:600;border:2px solid ' +
+      (r === boardCallRound ? '#1a73e8' : '#ddd') + ';background:' +
+      (r === boardCallRound ? '#e8f0fe' : '#fff') + ';color:' +
+      (r === boardCallRound ? '#1a73e8' : '#555') + ';border-radius:8px;cursor:pointer';
+    btn.addEventListener('click', (function(round) {
+      return function() { boardCallRound = round; renderBoardCallRoundPicker(); loadBoardCall(); };
+    })(r));
+    picker.appendChild(btn);
+  }
+
+  // Category picker for Jacob (ALL access)
+  var catPicker = document.getElementById('boardCallCatPicker');
+  if (currentUser && currentUser.tournamentAccess === 'ALL') {
+    catPicker.style.display = 'flex';
+    catPicker.style.gap = '6px';
+    catPicker.style.flexWrap = 'wrap';
+    catPicker.innerHTML = '';
+    if (!boardCallCat) boardCallCat = 'SJ';
+    ['SJ','J','S','SS'].forEach(function(code) {
+      var b = document.createElement('button');
+      b.textContent = TOURNAMENT_LABELS[code];
+      b.style.cssText = 'padding:8px 14px;font-size:13px;border:2px solid ' +
+        (boardCallCat === code ? '#111' : '#ddd') + ';background:' +
+        (boardCallCat === code ? '#f0f0f0' : '#fff') + ';border-radius:8px;cursor:pointer;font-weight:600';
+      b.addEventListener('click', function() { boardCallCat = code; renderBoardCallRoundPicker(); loadBoardCall(); });
+      catPicker.appendChild(b);
+    });
+  } else {
+    catPicker.style.display = 'none';
+    boardCallCat = currentAttCat;
+  }
+  loadBoardCall();
+}
+
+window.setBoardCallMode = function(mode) {
+  boardCallMode = mode;
+  document.getElementById('boardCallWhiteBtn').style.borderColor = mode === 'white' ? '#111' : '#ddd';
+  document.getElementById('boardCallWhiteBtn').style.background = mode === 'white' ? '#fff' : '#f5f5f5';
+  document.getElementById('boardCallWhiteBtn').style.color = mode === 'white' ? '#111' : '#777';
+  document.getElementById('boardCallBlackBtn').style.borderColor = mode === 'black' ? '#111' : '#ddd';
+  document.getElementById('boardCallBlackBtn').style.background = mode === 'black' ? '#222' : '#f5f5f5';
+  document.getElementById('boardCallBlackBtn').style.color = mode === 'black' ? '#fff' : '#777';
+  loadBoardCall();
+};
+
+function loadBoardCall() {
+  var cat = boardCallCat || currentAttCat;
+  if (!cat) return;
+  var list = document.getElementById('boardCallList');
+  list.innerHTML = '<p style="color:#777;font-size:14px;">Loading...</p>';
+
+  db.collection('games')
+    .where('tournament', '==', cat)
+    .where('round', '==', boardCallRound)
+    .get().then(function(snap) {
+      var games = [];
+      snap.forEach(function(d) { games.push(d.data()); });
+      games.sort(function(a, b) {
+        return parseInt(a.board.split('-').pop(),10) - parseInt(b.board.split('-').pop(),10);
+      });
+
+      list.innerHTML = '';
+      if (games.length === 0) {
+        list.innerHTML = '<p style="color:#999;font-size:14px;">No pairings found for this round yet.</p>';
+        return;
+      }
+
+      games.forEach(function(g) {
+        var name = boardCallMode === 'white' ? (g.white || '(TBD)') : (g.black || '(TBD)');
+        var boardNum = g.board.split('-').pop();
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:14px 16px;' +
+          'background:#fff;border-radius:10px;margin-bottom:7px;' +
+          'box-shadow:0 1px 3px rgba(0,0,0,0.08);border-left:5px solid ' +
+          (boardCallMode === 'white' ? '#ddd' : '#333');
+        row.innerHTML =
+          '<div style="min-width:36px;font-size:13px;font-weight:700;color:#888;text-align:center">' + boardNum + '</div>' +
+          '<div style="width:0.5px;height:32px;background:#eee"></div>' +
+          '<div style="font-size:16px;font-weight:600;color:#1a1a1a;flex:1">' + name + '</div>' +
+          '<div style="font-size:11px;color:#fff;background:' + (boardCallMode==='white'?'#555':'#111') + ';padding:3px 8px;border-radius:6px">' +
+          (boardCallMode==='white'?'&#9633; W':'&#9632; B') + '</div>';
+        list.appendChild(row);
+      });
+    }).catch(function(e) {
+      list.innerHTML = '<p style="color:#c00;">Error: ' + e.message + '</p>';
+    });
 }
 
 tryAutoLogin();
