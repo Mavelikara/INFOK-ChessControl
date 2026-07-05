@@ -196,6 +196,15 @@ tr.bye-row td { font-style: italic; color: #999; background: #fffde7 !important;
   table.reportTable { font-size: 11px; }
 }
 
+.boardCard.flagged { border-left: 4px solid #e53935; }
+.flag { font-size: 13px; margin-left: 2px; vertical-align: middle; }
+.flagBtns { display: flex; gap: 8px; margin-top: 10px; }
+.flagBtnW { flex:1; padding: 11px 8px; font-size: 13px; font-weight: 700; border: 1px solid #f9ab00; border-radius: 8px; background: #fff3e0; color: #b34000; cursor: pointer; }
+.flagBtnB { flex:1; padding: 11px 8px; font-size: 13px; font-weight: 700; border: 1px solid #e57373; border-radius: 8px; background: #fce4e4; color: #7f0000; cursor: pointer; }
+.flagBtnW:active, .flagBtnB:active { opacity: 0.75; }
+.flagWarning { font-size: 12px; color: #e53935; font-weight: 700; margin-top: 6px; text-align: center; }
+.byeBadge { display: inline-block; background: #f9ab00; color: #5a3e00; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 8px; margin-left: 6px; vertical-align: middle; letter-spacing: 0.5px; }
+
 </style>
 </head>
 <body>
@@ -327,7 +336,12 @@ tr.bye-row td { font-style: italic; color: #999; background: #fffde7 !important;
       <button class="forfeit" data-res="+ / -">+/&#8722; W forfeit</button>
       <button class="forfeit" data-res="- / +">&#8722;/+ B forfeit</button>
     </div>
-    <textarea id="remarksInput" placeholder="Remarks (optional)"></textarea>
+    <div class="flagBtns">
+      <button class="flagBtnW" id="flagWhiteBtn">🚩 Flag White</button>
+      <button class="flagBtnB" id="flagBlackBtn">🚩 Flag Black</button>
+    </div>
+    <div class="flagWarning" id="flagWarning"></div>
+    <textarea id="remarksInput" placeholder="Remarks (optional)" style="margin-top:10px"></textarea>
     <div class="modalActions">
       <button id="closeModalBtn">Close</button>
       <button id="saveRemarksBtn">Save remarks</button>
@@ -583,6 +597,11 @@ function openBoardList(tournament, round) {
 function isBye(g) {
   return g.isBye || (g.white && !g.black) || (!g.white && g.black);
 }
+function flagIcons(count) {
+  var s = '';
+  for (var i = 0; i < (count||0); i++) s += '🚩';
+  return s ? ' <span class="flag">'+s+'</span>' : '';
+}
 function renderBoardList(games) {
   var list = document.getElementById('boardList');
   list.innerHTML = '';
@@ -591,15 +610,19 @@ function renderBoardList(games) {
     var black = g.black || '(TBD)';
     var bnum = g.board ? g.board.split('-').pop() : '?';
     var bye = isBye(g);
+    var wf = g.whiteFlags || 0;
+    var bf = g.blackFlags || 0;
+    var hasFlagAlert = (wf > 0 || bf > 0) && !bye;
     var div = document.createElement('div');
-    div.className = 'boardCard' + (bye ? ' bye' : '');
+    div.className = 'boardCard' + (bye ? ' bye' : hasFlagAlert ? ' flagged' : '');
     var resClass = g.result ? 'scored' : 'pending';
     var resText = g.result ? g.result : '\u2014';
     var blackDisplay = bye ? '<span style="color:#aaa">&#8212; Bye</span>' : black;
     var byeBadge = bye ? '<span class="byeBadge">BYE</span>' : '';
     div.innerHTML =
       '<div class="bnum">' + bnum + '</div>' +
-      '<div class="players">' + white + byeBadge + '<br><span class="vs">vs</span> ' + blackDisplay + '</div>' +
+      '<div class="players">' + white + flagIcons(wf) + byeBadge +
+      '<br><span class="vs">vs</span> ' + blackDisplay + flagIcons(bf) + '</div>' +
       '<div class="res ' + resClass + '">' + resText + '</div>';
     if (!bye) {
       div.addEventListener('click', function() { openResultModal(g); });
@@ -614,6 +637,14 @@ function openResultModal(game) {
   document.getElementById('modalTitle').textContent = 'Board ' + (game.board||'').split('-').pop();
   document.getElementById('modalSub').textContent = (game.white||'(TBD)') + '  vs  ' + (game.black||'(TBD)');
   document.getElementById('remarksInput').value = game.remarks || '';
+  var wf = game.whiteFlags || 0;
+  var bf = game.blackFlags || 0;
+  document.getElementById('flagWhiteBtn').textContent = '🚩 Flag White (' + wf + ')';
+  document.getElementById('flagBlackBtn').textContent = '🚩 Flag Black (' + bf + ')';
+  var warn = '';
+  if (wf >= 2) warn += 'White: next illegal = GAME LOSS.  ';
+  if (bf >= 2) warn += 'Black: next illegal = GAME LOSS.';
+  document.getElementById('flagWarning').textContent = warn;
   document.getElementById('resultModal').classList.add('active');
 }
 function closeModal() {
@@ -640,6 +671,32 @@ document.getElementById('saveRemarksBtn').addEventListener('click', function() {
     updatedBy: currentUser.username,
     updatedTime: firebase.firestore.FieldValue.serverTimestamp()
   }).then(closeModal).catch(function(e) { alert('Error: ' + e.message); });
+});
+document.getElementById('flagWhiteBtn').addEventListener('click', function() {
+  if (!activeGameId) return;
+  db.collection('games').doc(activeGameId).get().then(function(snap) {
+    var wf = (snap.data().whiteFlags || 0) + 1;
+    return db.collection('games').doc(activeGameId).update({
+      whiteFlags: wf, updatedBy: currentUser.username,
+      updatedTime: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function() {
+      document.getElementById('flagWhiteBtn').textContent = '🚩 Flag White (' + wf + ')';
+      if (wf >= 2) document.getElementById('flagWarning').textContent = 'White: next illegal = GAME LOSS.  ' + document.getElementById('flagWarning').textContent.replace('White: next illegal = GAME LOSS.  ','');
+    });
+  }).catch(function(e) { alert('Error: ' + e.message); });
+});
+document.getElementById('flagBlackBtn').addEventListener('click', function() {
+  if (!activeGameId) return;
+  db.collection('games').doc(activeGameId).get().then(function(snap) {
+    var bf = (snap.data().blackFlags || 0) + 1;
+    return db.collection('games').doc(activeGameId).update({
+      blackFlags: bf, updatedBy: currentUser.username,
+      updatedTime: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function() {
+      document.getElementById('flagBlackBtn').textContent = '🚩 Flag Black (' + bf + ')';
+      if (bf >= 2) document.getElementById('flagWarning').textContent = document.getElementById('flagWarning').textContent.replace('Black: next illegal = GAME LOSS.','') + 'Black: next illegal = GAME LOSS.';
+    });
+  }).catch(function(e) { alert('Error: ' + e.message); });
 });
 
 // ── Correction modal (Chief/Deputy) ──
