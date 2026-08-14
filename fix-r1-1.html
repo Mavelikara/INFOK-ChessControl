@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GRAND FINAL - Round 1 Fix &amp; Diagnostic</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:700px;margin:0 auto;padding:16px;background:#fafafa;color:#111}
+header{background:#111;color:#fff;padding:14px 16px;border-radius:10px;margin-bottom:14px}
+header h1{font-size:17px;margin:0}
+.card{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+h2{font-size:14px;margin:0 0 10px}
+p{font-size:13px;color:#555;line-height:1.5;margin:0 0 10px}
+button{width:100%;padding:15px;font-size:16px;font-weight:600;color:#fff;border:none;border-radius:10px;margin:5px 0;cursor:pointer}
+#diagBtn{background:#5f6368}
+#u12Btn{background:#1a73e8}
+#u16Btn{background:#188038}
+button:disabled{background:#bbb;cursor:not-allowed}
+#status{font-size:13px;padding:10px 12px;border-radius:8px;background:#eee;margin-bottom:12px}
+#log{background:#111;color:#0f0;font-family:monospace;font-size:12px;padding:12px;border-radius:8px;min-height:60px;white-space:pre-wrap;word-break:break-word;margin-top:10px;max-height:340px;overflow:auto}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px}
+th,td{border:1px solid #ddd;padding:5px 6px;text-align:left}
+th{background:#E8F0FE}
+td.empty{background:#fce8e6;color:#c5221f;font-style:italic}
+</style>
+</head>
+<body>
+<header><h1>GRAND FINAL &mdash; Round 1 fix &amp; diagnostic</h1></header>
+
+<div id="status">Starting...</div>
+
+<div class="card">
+  <h2>Step 1 &mdash; Check what is actually in the database</h2>
+  <p>This only reads. It changes nothing. Run it first and show me the result.</p>
+  <button id="diagBtn" disabled>Run diagnostic</button>
+  <div id="diagOut"></div>
+</div>
+
+<div class="card">
+  <h2>Step 2 &mdash; Write Round 1 pairings</h2>
+  <p>Pairings are built into this page &mdash; nothing to paste, nothing to parse. Each button writes 12 boards.</p>
+  <button id="u12Btn" disabled>Write Under 12 &mdash; Round 1</button>
+  <button id="u16Btn" disabled>Write Under 16 &mdash; Round 1</button>
+</div>
+
+<div id="log"></div>
+
+<script src="lib/firebase-app-compat.js"></script>
+<script src="lib/firebase-firestore-compat.js"></script>
+<script>
+var L=document.getElementById('log');
+var S=document.getElementById('status');
+function lg(m){L.textContent+=m+"\n";L.scrollTop=L.scrollHeight;}
+function st(m){S.textContent=m;}
+
+var U12=[
+[1,"Aaradhya Gibson","Juwan George Jelson"],
+[2,"Lakshmi Saanvi Perla","Aaron Gibson"],
+[3,"Abel Baker Fenn","Neha Naveen Naveen"],
+[4,"Nikil Aadhitya Babu","Adel Joseph"],
+[5,"Aiden Mathew George","Paulina Sharon"],
+[6,"Prabhas Anand","Anston Anil"],
+[7,"Anton Rijo Raphel","Pradyumna Pradhan"],
+[8,"Ryan Thomas John","David Boney Varghese"],
+[9,"Eden George Eldho","Shay Alvares"],
+[10,"Sidharth Parameshwar","Ethan Dalu Varghese"],
+[11,"Jeremiah Anoop Kuriakose","Sidharth Syam"],
+[12,"Sreyas Vinod","Johan Kalapurackal"]
+];
+var U16=[
+[1,"Aagney Shiju","Evaan Thomas Tess"],
+[2,"Jerron Baby Lansu","Aarohi Patel"],
+[3,"Abdulrahman Mohamadali","Joel Siju Kulangara"],
+[4,"Nathan Varghese Sajan","Abel Joseph"],
+[5,"Adon Joseph","Naythan Modi"],
+[6,"Nithinkrish","Anubhav Dash"],
+[7,"Aviroaan Uthayakumar","Noel John Aby"],
+[8,"Shakil Hossain","Ayman Fayyad Kaka"],
+[9,"Ayush Sujith","Sherin Jenefer Lal"],
+[10,"Sherwin Siby Alex","Daniel Elijah Pereira"],
+[11,"Davit Tatoyan","Subhanshu Kumar"],
+[12,"Vihaan Vinod Kaikolom","Dinesh Kumar"]
+];
+
+var db=null;
+
+function loadScript(src){
+  return new Promise(function(res,rej){
+    var s=document.createElement('script');
+    s.src=src;
+    s.onload=function(){res();};
+    s.onerror=function(){rej(new Error('could not load '+src));};
+    document.head.appendChild(s);
+  });
+}
+
+function boot(){
+  var p=Promise.resolve();
+  if(typeof firebase==='undefined'||!firebase.firestore){
+    lg('Local Firebase (lib/) did not load. Trying Google CDN instead...');
+    st('Loading Firebase from CDN...');
+    p=loadScript('https://www.gstatic.com/firebasejs/8.10.1/firebase-app-compat.js')
+      .then(function(){return loadScript('https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore-compat.js');});
+  } else {
+    lg('Firebase loaded from lib/ OK.');
+  }
+  return p.then(function(){
+    if(typeof firebase==='undefined'||!firebase.firestore){
+      throw new Error('Firebase could not be loaded from lib/ or the CDN. The venue network may be blocking it.');
+    }
+    firebase.initializeApp({
+      apiKey:"AIzaSyAduUzHCW_LCSZoY7mf8U7jqTOlOnyfWT8",
+      authDomain:"infok-chesscontrol.firebaseapp.com",
+      projectId:"infok-chesscontrol",
+      storageBucket:"infok-chesscontrol.firebasestorage.app",
+      messagingSenderId:"1022228188225",
+      appId:"1:1022228188225:web:565a7f7266f37a2009cac0"
+    });
+    db=firebase.firestore();
+    lg('Firebase initialised. Project: infok-chesscontrol');
+    st('Ready. Run the diagnostic first.');
+    document.getElementById('diagBtn').disabled=false;
+    document.getElementById('u12Btn').disabled=false;
+    document.getElementById('u16Btn').disabled=false;
+  });
+}
+
+boot().catch(function(e){
+  st('FAILED TO START');
+  lg('STARTUP ERROR: '+e.message);
+});
+
+document.getElementById('diagBtn').addEventListener('click',function(){
+  this.disabled=true;
+  lg('\n--- DIAGNOSTIC ---');
+  st('Reading database...');
+  var out=document.getElementById('diagOut');
+  out.innerHTML='';
+  var cats=['U12','U16'];
+  var html='';
+  var chain=Promise.resolve();
+  cats.forEach(function(cat){
+    chain=chain.then(function(){
+      return db.collection('games').where('tournament','==',cat).where('round','==',1).get()
+        .then(function(snap){
+          lg(cat+' Round 1: found '+snap.size+' board document(s).');
+          var rows=[];
+          snap.forEach(function(d){
+            var g=d.data();
+            rows.push({id:d.id,white:g.white||'',black:g.black||'',res:g.result||'',bye:g.isBye?'BYE':''});
+          });
+          rows.sort(function(a,b){return a.id.localeCompare(b.id);});
+          html+='<h2 style="margin-top:12px">'+cat+' Round 1 &mdash; '+snap.size+' boards</h2><table><tr><th>Doc</th><th>White</th><th>Black</th><th>Res</th></tr>';
+          rows.forEach(function(r){
+            html+='<tr><td>'+r.id+'</td>'+
+              '<td class="'+(r.white?'':'empty')+'">'+(r.white||'EMPTY')+'</td>'+
+              '<td class="'+(r.black?'':'empty')+'">'+(r.black||(r.bye||'EMPTY'))+'</td>'+
+              '<td>'+r.res+'</td></tr>';
+            lg('  '+r.id+' | W:"'+r.white+'" | B:"'+r.black+'" | res:"'+r.res+'" '+r.bye);
+          });
+          html+='</table>';
+        });
+    });
+  });
+  chain.then(function(){
+    out.innerHTML=html;
+    lg('--- DIAGNOSTIC DONE ---');
+    lg('READ access works, so Firestore rules allow reading.');
+    st('Diagnostic complete. Scroll down for the log.');
+    document.getElementById('diagBtn').disabled=false;
+  }).catch(function(e){
+    lg('DIAGNOSTIC FAILED: '+e.message);
+    lg('If this says "permission denied" or "insufficient permissions", the Firestore rules have closed and NOTHING can read or write until they are reopened in the Firebase console.');
+    st('Diagnostic failed - see log.');
+    document.getElementById('diagBtn').disabled=false;
+  });
+});
+
+function writeRound(cat,pairs,btn){
+  btn.disabled=true;
+  lg('\n--- WRITING '+cat+' ROUND 1 ---');
+  st('Writing '+cat+'...');
+  var batch=db.batch();
+  pairs.forEach(function(p){
+    var bs=(p[0]<10?'0':'')+p[0];
+    var gameId=cat+'-R1-'+bs;
+    batch.set(db.collection('games').doc(gameId),{
+      gameId:gameId,
+      tournament:cat,
+      round:1,
+      board:cat+'-'+bs,
+      white:p[1],
+      black:p[2],
+      result:'',
+      remarks:'',
+      updatedBy:'',
+      whiteFlags:0,
+      blackFlags:0,
+      isBye:false
+    },{merge:true});
+    lg('  queued '+gameId+' : '+p[1]+' vs '+p[2]);
+  });
+  batch.commit().then(function(){
+    lg('SUCCESS: '+cat+' Round 1 written ('+pairs.length+' boards).');
+    lg('Now reading it back to confirm...');
+    return db.collection('games').where('tournament','==',cat).where('round','==',1).get();
+  }).then(function(snap){
+    var filled=0;
+    snap.forEach(function(d){if(d.data().white)filled++;});
+    lg('CONFIRMED: '+filled+' of '+snap.size+' boards now have a white player.');
+    st(cat+' done - '+filled+'/'+snap.size+' boards filled.');
+    btn.disabled=false;
+  }).catch(function(e){
+    lg('WRITE FAILED: '+e.message);
+    lg('Full error: '+JSON.stringify(e.code||'')+' '+(e.name||''));
+    lg('If this mentions permission, the Firestore rules are blocking writes.');
+    st('Write failed - see log.');
+    btn.disabled=false;
+  });
+}
+
+document.getElementById('u12Btn').addEventListener('click',function(){writeRound('U12',U12,this);});
+document.getElementById('u16Btn').addEventListener('click',function(){writeRound('U16',U16,this);});
+</script>
+</body>
+</html>
