@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>Grand Chess Tournament</title>
+<title>GRAND FINAL</title>
 <style>
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; background: #f4f4f5; color: #1a1a1a; min-height: 100vh; }
@@ -155,7 +155,7 @@ tr.bye-row td { font-style: italic; color: #999; background: #fffde7 !important;
 </head>
 <body>
 <header>
-  <h1>Grand Chess Tournament</h1>
+  <h1>GRAND FINAL</h1>
   <div style="display:flex;align-items:center;gap:10px">
     <span style="font-size:12px;opacity:0.7" id="whoLabel"></span>
     <button id="logoutBtn">Log out</button>
@@ -301,7 +301,7 @@ firebase.initializeApp(firebaseConfig);
 var db = firebase.firestore();
 var CAT_LABELS = { U12:'Under 12', U16:'Under 16' };
 var CAT_CLASS  = { U12:'u12', U16:'u16' };
-var ROUNDS = 4;
+var ROUNDS = 5;
 var currentUser=null, currentTournament=null, currentRound=null;
 var boardUnsub=null, dashUnsub=[], attUnsub=null, masterUnsub=null;
 var activeGameId=null, corrGameId=null;
@@ -535,7 +535,7 @@ function loadReport(round){
 function exportTRF(round){
   var fetches=['U12','U16'].map(function(code){return db.collection('games').where('tournament','==',code).where('round','==',round).get().then(function(snap){var games=[];snap.forEach(function(d){games.push(d.data());});games.sort(function(a,b){return parseInt(a.board.split('-').pop(),10)-parseInt(b.board.split('-').pop(),10);});return{code:code,games:games};});});
   Promise.all(fetches).then(function(results){
-    var lines=['012 Grand Chess Tournament','022 Kuwait','032 KUW','042 '+new Date().toISOString().slice(0,10),'062 '+round,'092 Swiss',''];
+    var lines=['012 GRAND FINAL','022 Kuwait','032 KUW','042 '+new Date().toISOString().slice(0,10),'062 '+round,'092 Swiss',''];
     function toTRF(res,isW){if(!res)return ' ';if(res==='1 - 0')return isW?'1':'0';if(res==='0 - 1')return isW?'0':'1';if(res==='\xbd - \xbd')return '=';if(res==='+ / -')return isW?'+':'-';if(res==='- / +')return isW?'-':'+';return 'F';}
     function pad(s,n){return(s+' '.repeat(n)).slice(0,n);}function lpad(s,n){return(' '.repeat(n)+s).slice(-n);}
     var pn=1;
