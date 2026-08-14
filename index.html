@@ -435,7 +435,7 @@ function openResultModal(game){
 }
 function closeModal(){document.getElementById('resultModal').classList.remove('active');activeGameId=null;}
 document.getElementById('closeModalBtn').addEventListener('click',closeModal);
-document.querySelectorAll('#resBtns button').forEach(function(btn){
+document.querySelectorAll('#resultModal .resBtns button').forEach(function(btn){
   btn.addEventListener('click',function(){
     if(!activeGameId)return;
     db.collection('games').doc(activeGameId).update({result:btn.getAttribute('data-res'),remarks:document.getElementById('remarksInput').value.trim(),updatedBy:currentUser.username,updatedTime:firebase.firestore.FieldValue.serverTimestamp()}).then(closeModal).catch(function(e){alert('Error: '+e.message);});
