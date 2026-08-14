@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GRAND FINAL - Clear a Round</title>
+<style>
+body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;max-width:520px;margin:24px auto;padding:0 16px;color:#111}
+h2{margin-bottom:4px}
+p.sub{color:#555;margin-top:0}
+label{display:block;font-weight:600;margin:16px 0 6px}
+select,input[type=text]{width:100%;padding:10px;font-size:15px;border:1px solid #ccc;border-radius:8px;box-sizing:border-box}
+.opt{border:1px solid #ddd;border-radius:10px;padding:12px;margin:10px 0}
+.opt h4{margin:0 0 4px}
+.opt p{margin:0 0 10px;color:#555;font-size:13px}
+button{width:100%;padding:14px;font-size:15px;font-weight:600;border:none;border-radius:8px;cursor:pointer;margin:4px 0}
+button:disabled{background:#ccc!important;color:#666!important}
+.results-btn{background:#f9ab00;color:#000}
+.full-btn{background:#d93025;color:#fff}
+#log{background:#111;color:#0f0;font-family:monospace;font-size:13px;padding:12px;border-radius:8px;min-height:40px;white-space:pre-wrap;margin-top:16px;display:none}
+</style>
+</head>
+<body>
+<h2>GRAND FINAL &mdash; Clear a Round</h2>
+<p class="sub">Use this only for a last-minute fix on one round. It never touches any other round, and never touches Attendance.</p>
+
+<label>Tournament</label>
+<select id="tSel">
+  <option value="U12">Under 12</option>
+  <option value="U16">Under 16</option>
+</select>
+
+<label>Round</label>
+<select id="rSel">
+  <option value="1">Round 1</option>
+  <option value="2">Round 2</option>
+  <option value="3">Round 3</option>
+  <option value="4">Round 4</option>
+  <option value="5">Round 5</option>
+</select>
+
+<div class="opt">
+  <h4>Option A &mdash; Clear results only</h4>
+  <p>Keeps the board pairings (who's playing who) for this round. Wipes the entered result, remarks, flags. Use this if the pairings for the round are correct but a result was entered wrong and needs redoing.</p>
+  <button class="results-btn" id="btnResults">Clear results for this round</button>
+</div>
+
+<div class="opt">
+  <h4>Option B &mdash; Clear pairings + results (full reset)</h4>
+  <p>Wipes everything for this round: who's playing who, and any results. Boards go back to blank (TBD) so the Chief Arbiter can re-paste the correct pairing. Use this if the round itself was set up wrong.</p>
+  <label>Type <code>CLEAR</code> to enable this button</label>
+  <input type="text" id="confirmText" placeholder="Type CLEAR here">
+  <button class="full-btn" id="btnFull" disabled>Clear pairings + results for this round</button>
+</div>
+
+<div id="log"></div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore-compat.js"></script>
+<script>
+var firebaseConfig = {
+  apiKey: "AIzaSyAduUzHCW_LCSZoY7mf8U7jqTOlOnyfWT8",
+  authDomain: "infok-chesscontrol.firebaseapp.com",
+  projectId: "infok-chesscontrol",
+  storageBucket: "infok-chesscontrol.firebasestorage.app",
+  messagingSenderId: "1022228188225",
+  appId: "1:1022228188225:web:565a7f7266f37a2009cac0"
+};
+firebase.initializeApp(firebaseConfig);
+var db = firebase.firestore();
+
+var L = document.getElementById('log');
+function lg(m){ L.style.display='block'; L.textContent += m + "\n"; L.scrollTop = L.scrollHeight; }
+function dis(){ document.querySelectorAll('button').forEach(function(b){ b.disabled = true; }); }
+function ena(){
+  document.getElementById('btnResults').disabled = false;
+  document.getElementById('btnFull').disabled = document.getElementById('confirmText').value.trim() !== 'CLEAR';
+}
+
+document.getElementById('confirmText').addEventListener('input', function(){
+  document.getElementById('btnFull').disabled = this.value.trim() !== 'CLEAR';
+});
+
+function gameIds(tournament, round){
+  var ids = [];
+  for (var b = 1; b <= 12; b++){
+    ids.push(tournament + '-R' + round + '-' + (b < 10 ? '0'+b : b));
+  }
+  return ids;
+}
+
+function runClear(fullReset){
+  var t = document.getElementById('tSel').value;
+  var r = document.getElementById('rSel').value;
+  if (!confirm('Clear ' + (fullReset ? 'pairings + results' : 'results only') + ' for ' + t + ' Round ' + r + '? This cannot be undone.')) return;
+  dis();
+  lg('Clearing ' + t + ' Round ' + r + ' (' + (fullReset ? 'pairings + results' : 'results only') + ')...');
+  var ids = gameIds(t, r);
+  var batch = db.batch();
+  ids.forEach(function(id){
+    var data = fullReset
+      ? {white:'', black:'', result:'', remarks:'', updatedBy:'', updatedTime:'', whiteFlags:0, blackFlags:0}
+      : {result:'', remarks:'', updatedBy:'', updatedTime:'', whiteFlags:0, blackFlags:0};
+    batch.update(db.collection('games').doc(id), data);
+  });
+  batch.commit().then(function(){
+    lg('Done. ' + ids.length + ' boards updated (' + t + ' R' + r + ').');
+    document.getElementById('confirmText').value = '';
+    ena();
+  }).catch(function(e){
+    lg('ERROR: ' + e.message + '\n(If a board doc was missing this can happen - check the round screen.)');
+    ena();
+  });
+}
+
+document.getElementById('btnResults').addEventListener('click', function(){ runClear(false); });
+document.getElementById('btnFull').addEventListener('click', function(){ runClear(true); });
+</script>
+</body>
+</html>
